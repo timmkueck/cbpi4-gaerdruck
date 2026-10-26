@@ -22,7 +22,9 @@ Braubrücke, Plugin `cbpi4-kellersensor`).
 - **Mechanisches Überdruckventil bleibt Pflicht**, die Software ist die zweite Sicherung. Grenzdruck unter dem
   Tankmaximum (All Rounder 2,4 bar), Druckminderer unter den Grenzdruck stellen.
 - Soll- und Messwerte in **bar**. Der Solldruck-Dialog von cbpi4gui kennt nur kPa/PSI (Schieber 0–400 in ganzen
-  Schritten, Wert wird unverändert übernommen): Solldruck über Gärplan-Schritte („Pressure“) oder REST setzen.
+  Schritten, Wert wird unverändert übernommen). Deshalb gilt `target_pressure` ab 5 (`technik.SOLL_AB_SCHIEBER`) als
+  kPa/PSI nach `PRESSURE_UNIT`; `_solldruck()` rechnet um und schreibt bar zurück. Darunter bar (Gärplan, REST,
+  Gärtankformular). Soll ≥ Grenzdruck sperrt das Nachdrücken. Schwelle nicht ändern, ohne README und Tests mitzuziehen.
 - Prüfen ohne Hardware: Tests, dazu die Brausimulation (`cbpi4-simulation`) mit den echten Ventil-Aktoren. Bei
   Zeitraffer > ~20 braucht die Simulation `Pause s` = 1.
 - Zweig `main`. Tests: `pip install cbpi4 pytest && python -m pytest tests/ -q`.

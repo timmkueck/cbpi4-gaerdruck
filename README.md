@@ -77,7 +77,22 @@ Jede Sekunde, nach jedem Ventilpuls 3 s Pause zum Beruhigen:
 | Tankdruck unbekannt | Vorgabe: Spundventil pulst vorsorglich (Einstellung „Bei Fühlerausfall“), nie Drücken |
 | Biertemperatur unbekannt | Heizung und Kühlung aus |
 
-Solldruck in **bar** (Gärtankdialog oder Gärplan-Schritt „Pressure“). Soll 0 heißt drucklos gären.
+Solldruck in **bar**. Soll 0 heißt drucklos gären. Setzen lässt er sich auf drei Wegen:
+
+| Weg | Eingabe | Wird gelesen als |
+|---|---|---|
+| Dashboard, Knopf „Set target pressure“ (Schieber 0–400, „kPa“) | 120 | **kPa**, umgerechnet auf 1,20 bar |
+| Gärplan-Schritt „Pressure“, Hardware → Gärtank bearbeiten („TargetPressure“), REST | 1.2 | bar |
+| `einrichten.py` | 1.0 | bar |
+
+Regel: **Werte ab 5 sind kPa** aus dem Schieber (bei `PRESSURE_UNIT` = PSI: PSI), darunter bar. Die Logik rechnet
+beim nächsten Durchlauf um, schreibt den Wert in bar zurück und meldet „Solldruck 120 kPa als 1.20 bar übernommen“.
+Danach zeigen Dashboard (Widget „SollDruck“, Einheit bar) und Dialog den bar-Wert; der Dialog beschriftet ihn
+trotzdem mit „kPa“, weil cbpi4gui die Einheit fest einbaut. Auflösung über den Schieber: 0,01 bar.
+
+Der Bereich 1–4 auf dem Schieber ist mehrdeutig und wird als bar gelesen. Liegt der Solldruck dadurch am oder über dem
+Grenzdruck, drückt die Logik nicht nach und meldet eine Störung; der Grenzdruck lässt ohnehin vorher ab. Wer 1–4 kPa
+meint (0,01–0,04 bar), stellt 0 ein (drucklos).
 
 **Kegs** (`KegDruckLogik`): Unter Soll − 0,05 bar drückt Ventil 3/4 einen Puls von 0,5 s, danach 3 s Pause. Es gibt
 kein Ablassventil: Über dem Grenzdruck (3,0 bar) kommt nur eine Meldung. Bei Fühlerausfall bleibt das Ventil zu.

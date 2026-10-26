@@ -104,6 +104,70 @@ def test_grenzdruck_haelt_spundventil_offen_mit_hysterese():
     assert r.entscheiden(3.0, 2.1, FRISCH).aktion == T.NOTABLASS
 
 
+
+def test_soll_ueber_grenzdruck_sperrt_nachdruecken():
+    # Schieberwert 1-4 (kPa gemeint) wird als bar gelesen: darf nie hochdruecken
+    r = T.Druckregler(grenzdruck=2.0)
+    e = r.entscheiden(3.0, 1.0, FRISCH)
+    assert e.aktion is None and "Grenzdruck" in e.stoerung
+    assert r.entscheiden(1.9, 1.0, FRISCH).aktion == T.DRUECKEN
+    assert keg_regler().entscheiden(4.0, 1.0, FRISCH).aktion is None
+
+
+# --- Solldruck aus dem kPa/PSI-Schieber von cbpi4gui ------------------------------
+
+@pytest.mark.parametrize("wert, einheit, erwartet", [
+    (1.2, "kPa", (1.2, False)),      # Gaerplan, REST, Hardware-Formular: bar
+    ("1,5", "kPa", (1.5, False)),
+    ("2.4", "kPa", (2.4, False)),
+    (0, "kPa", (0.0, False)),
+    (None, "kPa", (0.0, False)),
+    ("", "kPa", (0.0, False)),
+    (-1, "kPa", (0.0, False)),
+    (4.9, "kPa", (4.9, False)),      # unter der Schwelle: bar (sperrt dann ueber den Grenzdruck)
+    (5, "kPa", (0.05, True)),
+    (120, "kPa", (1.2, True)),       # Schieber "120 kPa"
+    (250, "kPa", (2.5, True)),
+    (400, "kPa", (4.0, True)),
+    (17.5, "PSI", (1.207, True)),
+    (30, "psi", (2.068, True)),
+    (120, None, (1.2, True)),
+])
+def test_solldruck_bar(wert, einheit, erwartet):
+    assert T.solldruck_bar(wert, einheit) == erwartet
+
+
+def test_solldruck_unsinn():
+    with pytest.raises(ValueError, match="keine Zahl"):
+        T.solldruck_bar("viel")
+
+
+def test_logik_schreibt_schieberwert_als_bar_zurueck():
+    pytest.importorskip("cbpi")
+    import asyncio
+    from types import SimpleNamespace
+    from cbpi4_gaerdruck import GaerDruckLogik, KegDruckLogik
+
+    class Fermenter:
+        def __init__(self):
+            self.gesetzt = []
+
+        async def set_target_pressure(self, id, wert):
+            self.gesetzt.append((id, wert))
+
+    for klasse in (GaerDruckLogik, KegDruckLogik):
+        meldungen = []
+        cbpi = SimpleNamespace(config=SimpleNamespace(get=lambda name, default=None: "kPa"),
+                               fermenter=Fermenter(), notify=lambda *a: meldungen.append(a))
+        logik = object.__new__(klasse)
+        logik.cbpi = cbpi
+        f = SimpleNamespace(id="t1", name="FermZilla", target_pressure=120)
+        assert asyncio.run(logik._solldruck(f)) == 1.2
+        assert cbpi.fermenter.gesetzt == [("t1", 1.2)] and "1.20 bar" in meldungen[0][1]
+        f.target_pressure = 1.2  # Gaerplan oder schon umgerechnet: nichts schreiben
+        assert asyncio.run(logik._solldruck(f)) == 1.2
+        assert len(cbpi.fermenter.gesetzt) == 1
+
 def test_fuehlerausfall():
     r = T.Druckregler()
     e = r.entscheiden(1.0, None, None)

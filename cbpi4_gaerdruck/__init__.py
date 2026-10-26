@@ -10,6 +10,10 @@ KegDruckLogik  Keg auf Solldruck halten: nur Nachdruecken ueber ein
                CO2-Ventil (HAT Ventil 3/4), kein Ablassventil.
 
 Die Ventile selbst sind SicherAktor aus cbpi4-brausicher (lgpio, Waechter).
+
+Solldruck (target_pressure) in bar. Werte ab 5 kommen aus dem Schieber
+"Set Target Pressure" von cbpi4gui (kPa bzw. PSI nach PRESSURE_UNIT): Die
+Logik rechnet sie um und schreibt bar zurueck (120 kPa -> 1,2 bar).
 """
 import asyncio
 import logging
@@ -22,7 +26,7 @@ from cbpi.api.dataclasses import NotificationType
 
 from . import technik
 from .technik import (DRUECKEN, MESSBEREICHE, NOTABLASS, SPUNDEN, Druckregler,
-                      Temperaturregler, TechnikFehler)
+                      Temperaturregler, TechnikFehler, solldruck_bar)
 
 log = logging.getLogger("cbpi4_gaerdruck")
 
@@ -220,6 +224,19 @@ class _DruckLogikBasis(CBPiFermenterLogic):
         alter = inst.alter() if hasattr(inst, "alter") else 0.0
         return (wert if isinstance(wert, (int, float)) else None), alter
 
+    async def _solldruck(self, f):
+        """Solldruck in bar. Ein Wert aus dem kPa/PSI-Schieber wird umgerechnet
+        und als bar zurueckgeschrieben, damit Dashboard und Dialog bar zeigen."""
+        einheit = self.cbpi.config.get("PRESSURE_UNIT", "kPa") or "kPa"
+        bar, umgerechnet = solldruck_bar(f.target_pressure, einheit)
+        if umgerechnet:
+            vorher = f.target_pressure
+            await self.cbpi.fermenter.set_target_pressure(f.id, bar)
+            text = f"Solldruck {vorher} {einheit} als {bar:.2f} bar übernommen"
+            log.info("%s: %s", f.name, text)
+            self.cbpi.notify(f.name or self.TITEL, text, NotificationType.INFO)
+        return bar
+
     def _an(self, aktor_id):
         return bool(getattr(_instanz(self.cbpi.actor, aktor_id), "state", False))
 
@@ -363,6 +380,7 @@ class GaerDruckLogik(_DruckLogikBasis):
 
     async def _druck(self, f, regler):
         """Ein Druckdurchlauf. Gibt zurueck, wie lange danach gewartet wird."""
+        soll = await self._solldruck(f)
         spund, co2 = f.valve, f.props.get("Ventil Drücken")
         if not f.pressure_sensor or not (spund or co2):
             return 1.0
@@ -371,7 +389,7 @@ class GaerDruckLogik(_DruckLogikBasis):
         p, alter = self._wert(f.pressure_sensor)
         vordruck, vordruck_alter = self._wert(f.props.get("Fühler CO₂-Vordruck"))
         e = regler.entscheiden(
-            f.target_pressure, p, alter, None, None, vordruck, vordruck_alter,
+            soll, p, alter, None, None, vordruck, vordruck_alter,
             vordruck_da=bool(f.props.get("Fühler CO₂-Vordruck")))
         self._melden("stoerung", e.stoerung, NotificationType.ERROR)
         self._melden("hinweis", e.hinweis, NotificationType.WARNING)
@@ -423,12 +441,13 @@ class KegDruckLogik(_DruckLogikBasis):
         )
 
     async def _durchlauf(self, f):
+        soll = await self._solldruck(f)
         ventil = f.valve
         if not f.pressure_sensor or not ventil:
             return 1.0
         p, alter = self._wert(f.pressure_sensor)
         vordruck, vordruck_alter = self._wert(f.props.get("Fühler CO₂-Vordruck"))
-        e = self._druckregler.entscheiden(f.target_pressure, p, alter, vordruck=vordruck,
+        e = self._druckregler.entscheiden(soll, p, alter, vordruck=vordruck,
                                           vordruck_alter=vordruck_alter,
                                           vordruck_da=bool(f.props.get("Fühler CO₂-Vordruck")))
         stoerung = e.stoerung

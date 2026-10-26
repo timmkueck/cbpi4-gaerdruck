@@ -14,6 +14,12 @@ from dataclasses import dataclass
 log = logging.getLogger("cbpi4_gaerdruck")
 
 PSI = 0.0689476  # bar
+KPA = 0.01  # bar
+
+# Solldruck (target_pressure): Werte ab hier stammen aus dem Schieber von
+# cbpi4gui (PRESSURE_UNIT kPa oder PSI), darunter sind es bar. Kein Gaertank
+# und kein Keg wird mit 5 bar betrieben, 5 kPa (0,05 bar) stellt niemand ein.
+SOLL_AB_SCHIEBER = 5.0
 
 # Messbereich -> Enddruck in bar (Ausgang 0,5 V = 0, 4,5 V = Enddruck)
 MESSBEREICHE = {
@@ -31,6 +37,22 @@ TEILER_HAT = 2 / 3
 
 class TechnikFehler(Exception):
     pass
+
+
+def solldruck_bar(wert, einheit="kPa"):
+    """target_pressure -> (bar, umgerechnet). Ab SOLL_AB_SCHIEBER gilt der Wert
+    als kPa bzw. PSI aus dem Dialog "Set Target Pressure", sonst als bar.
+    Leer gilt als 0 (drucklos), Unsinn loest ValueError aus."""
+    if wert is None or wert == "":
+        return 0.0, False
+    try:
+        zahl = float(str(wert).replace(",", "."))
+    except ValueError:
+        raise ValueError(f"Solldruck {wert!r} ist keine Zahl") from None
+    if zahl < SOLL_AB_SCHIEBER:
+        return max(0.0, zahl), False
+    faktor = PSI if str(einheit).strip().upper() == "PSI" else KPA
+    return round(zahl * faktor, 3), True
 
 
 # --- ADS1115 ----------------------------------------------------------------
@@ -198,6 +220,9 @@ class Druckregler:
         if druck < soll - self.druecken_unter and self.nachdruecken:
             if abweichung:
                 pass
+            elif soll >= self.grenzdruck:
+                stoerung = (f"Solldruck {soll:g} bar liegt nicht unter dem Grenzdruck {self.grenzdruck:g} bar: "
+                            "Nachdrücken gesperrt")
             elif self.druecken_gesperrt:
                 hinweis = self.druecken_gesperrt
             elif vordruck_da and not self._gueltig(vordruck, vordruck_alter):
