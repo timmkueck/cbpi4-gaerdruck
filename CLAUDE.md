@@ -15,7 +15,8 @@ Braubrücke, Plugin `cbpi4-kellersensor`).
 - `technik.py` ohne cbpi (ADS1115, Umrechnung, `Druckregler`, `Temperaturregler`), dort testbar.
 - `einrichten.py` (nur Standardbibliothek) legt per REST Fühler, Ventile, Gärtank und Dashboard 2 an,
   Ventilsymbole aus `widgets/`.
-- Die Ventile sind `SicherAktor` aus `cbpi4-brausicher` (Ventile 1–4 = GPIO 16, 17, 23, 25).
+- Die Ventile sind `SicherAktor` aus `cbpi4-brausicher` (Ventile 1–4 an J17 = GPIO 16, 17, 26, 13; Stand der Platine
+  Biersteuerung f5a2bcf, vorher 23/25 für Ventil 3/4).
 
 ## Regeln
 

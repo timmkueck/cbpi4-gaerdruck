@@ -29,9 +29,9 @@ FermZilla ─ Gaspfosten ─ Duotight-Kupplung ─ T ─ T ─ CO₂-Ventil ─�
                                                                    Verteiler ─ T ─ Druckminderer ─ CO₂-Flasche
                                                                    │           │
                                                                    │           CO₂-Vordruck (Druck 2)
-                                       Keg 1 ─ Kupplung ─ T ─ V3 (GPIO 23) ┤
+                                       Keg 1 ─ Kupplung ─ T ─ V3 (GPIO 26) ┤
                                                           Druck 3          │
-                                       Keg 2 ─ Kupplung ─ T ─ V4 (GPIO 25) ┘
+                                       Keg 2 ─ Kupplung ─ T ─ V4 (GPIO 13) ┘
                                                           Druck 4
 ```
 
@@ -116,6 +116,11 @@ python3 ~/cbpi4-gaerdruck/einrichten.py \
 vorhandener Fühler/Aktoren. Das Skript findet den Konfigurationsordner (`~/config` oder `~/cbpi4/config`) für die
 Ventilsymbole selbst, sonst `--config <Ordner>`. Mehrfach aufrufen schadet nicht: Vorhandenes wird wiederverwendet,
 nur Dashboard 2 wird neu geschrieben (`--dashboard N` für ein anderes).
+
+**Platine mit Ventilausgängen (Stand Biersteuerung f5a2bcf):** Ventile 1–4 an J17 = GPIO 16, 17, **26, 13**
+(vorher 23 und 25 für Ventil 3/4). Wer die Ventile mit einer älteren Fassung angelegt hat: Das Skript übernimmt
+vorhandene Aktoren anhand des Namens und ändert ihren GPIO nicht. „CO₂ Keg 1“ und „CO₂ Keg 2“ dann unter
+*Hardware → Aktor* auf 26 und 13 umstellen.
 
 Danach in cbpi: **Dashboard → oben rechts „2“**. Zu sehen:
 

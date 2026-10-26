@@ -25,11 +25,11 @@ SENSOREN = {  # Name -> Kanal am ADS1115 (HAT J18)
     "Keg 1 Druck": "AIN2 (Druck 3)",
     "Keg 2 Druck": "AIN3 (Druck 4)",
 }
-VENTILE = {  # Name -> GPIO (HAT J17 Ventile 1-4: 16, 17, 23, 25)
+VENTILE = {  # Name -> GPIO (HAT J17 Ventile 1-4: 16, 17, 26, 13; Stand Biersteuerung f5a2bcf)
     "Spundventil": 16,
     "CO₂-Ventil": 17,
-    "CO₂ Keg 1": 23,
-    "CO₂ Keg 2": 25,
+    "CO₂ Keg 1": 26,
+    "CO₂ Keg 2": 13,
 }
 KEGS = {  # Name -> (Drucksensor, CO2-Ventil)
     "Keg 1": ("Keg 1 Druck", "CO₂ Keg 1"),
