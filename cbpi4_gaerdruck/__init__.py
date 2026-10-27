@@ -50,10 +50,14 @@ def _instanz(controller, item_id):
 # --- Drucksensor ------------------------------------------------------------------
 
 @parameters([
-    Property.Select("Kanal", options=KANAELE, description="Eingang am ADS1115 (HAT: J18 Druck 1-4)"),
+    Property.Select("Kanal", options=KANAELE,
+                    description="Eingang am ADS1115. HAT: an 0x48 ist AIN0-3 = Druck 1-4 (J18), "
+                                "an 0x49 dieselben Eingänge = Druck 5-8 (J21)"),
     Property.Select("Messbereich", options=list(MESSBEREICHE),
-                    description="Laut Sensor (BrewPiLess-PCB/docs/drucksensoren.md: 0-80 psi)"),
-    Property.Select("Adresse", options=ADRESSEN, description="I2C-Adresse des ADS1115 (HAT: 0x48)"),
+                    description="Laut Sensor (BrewPiLess-PCB/docs/drucksensoren.md: 0-80 psi). "
+                                "CO₂-Flasche vor dem Druckminderer: Hochdruckgeber, 0-100 bar"),
+    Property.Select("Adresse", options=ADRESSEN,
+                    description="I2C-Adresse des ADS1115 (HAT: 0x48 = Druck 1-4, 0x49 = Druck 5-8)"),
     Property.Number("Teiler", configurable=True, default_value=0.6667,
                     description="Spannungsteiler vor dem ADS1115. HAT Biersteuerung: 0.6667, ohne Teiler: 1"),
     Property.Number("Nullpunkt bar", configurable=True, default_value=0,

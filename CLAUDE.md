@@ -9,17 +9,22 @@ Braubrücke, Plugin `cbpi4-kellersensor`).
 
 ## Inhalt
 
-- `DruckSensor` (ADS1115, bar, nie `None`, Nullpunkt-Aktion, eigene einfache Simulation), `GaerDruckLogik`
+- `DruckSensor` (beide ADS1115 des HAT: 0x48 = Druck 1-4 an J18, 0x49 = Druck 5-8 an J21; bar, nie `None`,
+  Nullpunkt-Aktion, eigene einfache Simulation), `GaerDruckLogik`
   (Temperatur mit Kompressorpause, Spunden/Nachdrücken, Grenzdruck, Fühlervergleich, Wirkungs- und Sprungprüfung),
   `KegDruckLogik`, `GaerDruckAutostart` (eigener Autostart). Typnamen nicht umbenennen.
 - `technik.py` ohne cbpi (ADS1115, Umrechnung, `Druckregler`, `Temperaturregler`), dort testbar.
 - `einrichten.py` (nur Standardbibliothek) legt per REST Fühler, Ventile, Gärtank und Dashboard 2 an,
-  Ventilsymbole aus `widgets/`.
+  Ventilsymbole aus `widgets/`. `SENSOREN` ist `Name -> (Kanal, Adresse, Messbereich)`; der fünfte Fühler
+  `CO₂-Flasche` liegt an **0x49 AIN0 = Druck 5** (J21).
 - Die Ventile sind `SicherAktor` aus `cbpi4-brausicher` (Ventile 1–4 an J17 = GPIO 16, 17, 26, 13; Stand der Platine
   Biersteuerung f5a2bcf, vorher 23/25 für Ventil 3/4).
 
 ## Regeln
 
+- **Die CO₂-Flasche braucht einen Hochdruckgeber.** Vor dem Druckminderer stehen rund 50 bar (bis etwa 74 bar
+  nahe dem kritischen Punkt), deshalb `technik.FLASCHE_BEREICH` = `0-100 bar`. Die kleinen Bereiche gelten nur
+  hinter dem Druckminderer. Der Flaschendruck ist Anzeige, geregelt wird weiter über den CO₂-Vordruck (Druck 2).
 - **Mechanisches Überdruckventil bleibt Pflicht**, die Software ist die zweite Sicherung. Grenzdruck unter dem
   Tankmaximum (All Rounder 2,4 bar), Druckminderer unter den Grenzdruck stellen.
 - Soll- und Messwerte in **bar**. Der Solldruck-Dialog von cbpi4gui kennt nur kPa/PSI (Schieber 0–400 in ganzen

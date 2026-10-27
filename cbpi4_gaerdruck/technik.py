@@ -22,6 +22,10 @@ KPA = 0.01  # bar
 SOLL_AB_SCHIEBER = 5.0
 
 # Messbereich -> Enddruck in bar (Ausgang 0,5 V = 0, 4,5 V = Enddruck)
+# Die beiden grossen Bereiche gehoeren zur CO2-Flasche vor dem Druckminderer
+# (Druck 5 an J21, zweiter ADS1115). Dort stehen bei Raumtemperatur rund 50 bar
+# an, nahe dem kritischen Punkt (31 C) bis etwa 74 bar; jeder kleinere Geber
+# waere dauerhaft uebersteuert. Hinter dem Druckminderer bleibt es bei 0-80 psi.
 MESSBEREICHE = {
     "0-80 psi": 80 * PSI,
     "0-100 psi": 100 * PSI,
@@ -29,7 +33,12 @@ MESSBEREICHE = {
     "0-30 psi": 30 * PSI,
     "0-5 bar": 5.0,
     "0-10 bar": 10.0,
+    "0-1500 psi": 1500 * PSI,
+    "0-100 bar": 100.0,
 }
+
+# Vorgabe fuer die CO2-Flasche; einrichten.py legt den Fuehler damit an.
+FLASCHE_BEREICH = "0-100 bar"
 
 # HAT Biersteuerung (Bogen Ventile_Sensoren): 10 k / 20 k vor dem ADS1115
 TEILER_HAT = 2 / 3

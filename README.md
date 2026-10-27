@@ -7,11 +7,11 @@ ADS1115 des HAT „Biersteuerung“ (Bogen *Ventile_Sensoren*, Zweig `ventile-dr
 
 | In CraftBeerPi | Typ | Aufgabe |
 |---|---|---|
-| `DruckSensor` | Sensor | Drucktransmitter an J18 (Druck 1–4 = AIN0–3), Wert in bar, nie `None`, Meldung bei Kabelbruch/Kurzschluss |
+| `DruckSensor` | Sensor | Drucktransmitter am ADS1115 (0x48 = Druck 1–4 an J18, 0x49 = Druck 5–8 an J21, je AIN0–3), Wert in bar, nie `None`, Meldung bei Kabelbruch/Kurzschluss |
 | `GaerDruckLogik` | Gärtanklogik | Temperatur (Heizen/Kühlen mit Kompressorpause) und Druck (Spunden + Nachdrücken) |
 | `KegDruckLogik` | Gärtanklogik | Keg auf Solldruck halten, nur Nachdrücken (ein Keg hat kein Ablassventil) |
 | `GaerDruckAutostart` | Erweiterung | startet die Regelung nach jedem Neustart von cbpi wieder (die eingebaute „Fermenter Autostart“ startet in 4.7.7 nichts) |
-| `einrichten.py` | Skript | legt Fühler, Ventile, Gärtank, beide Kegs und **Dashboard 2** per REST an |
+| `einrichten.py` | Skript | legt die fünf Fühler, Ventile, Gärtank, beide Kegs und **Dashboard 2** per REST an |
 
 Die Ventile sind `SicherAktor` aus [`cbpi4-brausicher`](https://github.com/timmkueck/cbpi4-brausicher) (lgpio, Wächter-Thread, Ausgang aus,
 wenn cbpi hängt).
@@ -26,9 +26,9 @@ FermZilla ─ Gaspfosten ─ Duotight-Kupplung ─ T ─ T ─ CO₂-Ventil ─�
                                              │   │   (V2, GPIO 17)│
                                     Tankdruck│   └ Spundventil ─ Abluft
                                     (Druck 1)     (V1, GPIO 16)    │
-                                                                   Verteiler ─ T ─ Druckminderer ─ CO₂-Flasche
-                                                                   │           │
-                                                                   │           CO₂-Vordruck (Druck 2)
+                                                                   Verteiler ─ T ─ Druckminderer ─ T ─ CO₂-Flasche
+                                                                   │           │                      │
+                                                                   │           CO₂-Vordruck (Druck 2)  Flaschendruck (Druck 5)
                                        Keg 1 ─ Kupplung ─ T ─ V3 (GPIO 26) ┤
                                                           Druck 3          │
                                        Keg 2 ─ Kupplung ─ T ─ V4 (GPIO 13) ┘
@@ -41,6 +41,21 @@ FermZilla ─ Gaspfosten ─ Duotight-Kupplung ─ T ─ T ─ CO₂-Ventil ─�
 | CO₂-Vordruck hinter dem Druckminderer | Druck 2 / AIN1 | kein Nachdrücken bei leerer Flasche oder zu hoch eingestelltem Druckminderer |
 | Keg 1, T zwischen Ventil 3 und Kupplung | Druck 3 / AIN2 | Regelgröße Keg 1 |
 | Keg 2, T zwischen Ventil 4 und Kupplung | Druck 4 / AIN3 | Regelgröße Keg 2 |
+| CO₂-Flasche **vor** dem Druckminderer | Druck 5 / 0x49 AIN0 | Füllstand der Flasche, lange bevor sie leer ist |
+
+Druck 1–4 hängen am ersten ADS1115 (0x48, J18), Druck 5 am zweiten (0x49, J21). Dessen Eingänge heißen in der
+Oberfläche ebenfalls `AIN0 (Druck 1)` … `AIN3 (Druck 4)` -- entscheidend ist die **Adresse**: `AIN0` an `0x49`
+ist Druck 5.
+
+### Messbereich der CO₂-Flasche
+
+Hinter dem Druckminderer genügt der übliche 0–80-psi-Geber. **Vor** dem Druckminderer nicht: In der Flasche steht
+der Dampfdruck von CO₂, bei Raumtemperatur rund 50 bar und nahe dem kritischen Punkt (31 °C) bis etwa 74 bar.
+Dort gehört ein Hochdruckgeber mit gleicher Schnittstelle (0,5–4,5 V), Messbereich **0–100 bar** (oder 0–1500 psi);
+beide stehen in der Auswahl. Ein kleinerer Geber wäre dauerhaft übersteuert und meldete nur „Kurzschluss nach 5 V".
+
+Der Flaschendruck ist eine Anzeige, keine Regelgröße: Das Nachdrücken entscheidet weiter der CO₂-Vordruck
+(Druck 2) hinter dem Druckminderer.
 
 Teile: Drucksensoren mit Duotight-Adapter wie in `BrewPiLess-PCB/docs/drucksensoren.md`, Duotight 8 mm Equal Tee,
 Magnetventile 12 V (NC) mit 1/4"-BSP-Gewinde und Duotight 8 mm × 1/4" BSP.

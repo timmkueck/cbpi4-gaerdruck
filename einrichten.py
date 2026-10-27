@@ -19,12 +19,18 @@ import urllib.error
 import urllib.request
 
 TANK = "FermZilla 30 L"
-SENSOREN = {  # Name -> Kanal am ADS1115 (HAT J18)
-    "Tankdruck": "AIN0 (Druck 1)",
-    "CO₂-Vordruck": "AIN1 (Druck 2)",
-    "Keg 1 Druck": "AIN2 (Druck 3)",
-    "Keg 2 Druck": "AIN3 (Druck 4)",
+# Name -> (Kanal, I2C-Adresse, Messbereich). Der HAT hat zwei ADS1115: 0x48 traegt
+# Druck 1-4 (J18), 0x49 traegt Druck 5-8 (J21) -- dort heissen die Eingaenge
+# ebenfalls AIN0-3. Druck 5 sitzt VOR dem Druckminderer an der CO2-Flasche, wo bei
+# Raumtemperatur rund 50 bar anstehen; dafuer braucht es einen Hochdruckgeber.
+SENSOREN = {
+    "Tankdruck": ("AIN0 (Druck 1)", "0x48", "0-80 psi"),
+    "CO₂-Vordruck": ("AIN1 (Druck 2)", "0x48", "0-80 psi"),
+    "Keg 1 Druck": ("AIN2 (Druck 3)", "0x48", "0-80 psi"),
+    "Keg 2 Druck": ("AIN3 (Druck 4)", "0x48", "0-80 psi"),
+    "CO₂-Flasche": ("AIN0 (Druck 1)", "0x49", "0-100 bar"),  # = Druck 5 an J21
 }
+FLASCHE = "CO₂-Flasche"
 VENTILE = {  # Name -> GPIO (HAT J17 Ventile 1-4: 16, 17, 26, 13; Stand Biersteuerung f5a2bcf)
     "Spundventil": 16,
     "CO₂-Ventil": 17,
@@ -98,8 +104,8 @@ def element(nr, name, typ, x, y, **props):
 
 
 def dashboard(t):
-    """t: IDs (tank, temp, druck, vordruck, spund, co2, kuehlung, heizung, ventile={Name: ID},
-    kegs=[{name, id, druck, ventil}]).
+    """t: IDs (tank, temp, druck, vordruck, flasche, spund, co2, kuehlung, heizung,
+    ventile={Name: ID}, kegs=[{name, id, druck, ventil}]).
 
     Der FermZilla hat einen Gasanschluss. Alles haengt an einer 8-mm-Leitung:
     Gaspfosten -> Duotight-Kupplung -> T (Tankdruck) -> T (Spundventil -> Abluft)
@@ -146,6 +152,11 @@ def dashboard(t):
         add("CO₂-Vordruck", "Sensor", 576, 100, sensor=t["vordruck"], unit=" bar", size=18, digits=2, color=blau)
     add("Druckminderer", "Text", 615, 52, size=10, color=grau)
     add("CO₂-Flasche", "Text", 690, 37, size=14, color=weiss)
+    # Druck 5 (J21, 0x49 AIN0) sitzt VOR dem Druckminderer: rund 50 bar
+    add("Flaschendruck", "Text", 666, 84, size=10, color=grau)
+    if t.get("flasche"):
+        add("CO₂-Flasche ", "Sensor", 666, 100, sensor=t["flasche"], unit=" bar", size=18,
+            digits=1, color=orange)
 
     # Kegs am Verteiler (x = 540): Ventil, T mit Drucksensor, Gaskupplung
     for k, y in zip(t["kegs"], (150, 215)):
@@ -214,6 +225,7 @@ def dashboard(t):
         leitung("tankfuehler", [[170, 45], [170, 80]]),
         leitung("spund", [[280, 45], [280, 150], [380, 150]], [t["spund"]]),
         leitung("vordruck", [[600, 45], [600, 80]]),
+        leitung("flaschenfuehler", [[672, 45], [672, 80]]),
     ]
     for i, (k, y) in enumerate(zip(t["kegs"], (150, 215))):
         pfade.append(leitung(f"keg{i + 1}", [[680, 45], [540, 45], [540, y], [700, y]], [k["ventil"]]))
@@ -261,8 +273,9 @@ def main():
 
     print("Fühler:")
     s = {name: sicherstellen(cbpi, "sensor", name, dict(type="DruckSensor", props={
-        "Kanal": kanal, "Messbereich": "0-80 psi", "Adresse": "0x48", "Teiler": 0.6667,
-        "Nullpunkt bar": 0, "Max Alter s": 10, "Simulation": sim})) for name, kanal in SENSOREN.items()}
+        "Kanal": kanal, "Messbereich": bereich, "Adresse": adresse, "Teiler": 0.6667,
+        "Nullpunkt bar": 0, "Max Alter s": 10, "Simulation": sim}))
+        for name, (kanal, adresse, bereich) in SENSOREN.items()}
     print("Ventile:")
     v = {name: sicherstellen(cbpi, "actor", name, dict(type="SicherAktor", props={
         "GPIO": gpio, "Aktiv bei": "HIGH", "Art": "Sonstiges", "Takt s": 5, "Simulation": sim}))
@@ -283,7 +296,8 @@ def main():
                vordruck=(f.get("props") or {}).get("Fühler CO₂-Vordruck") or s["CO₂-Vordruck"],
                spund=f.get("valve") or v["Spundventil"],
                co2=(f.get("props") or {}).get("Ventil Drücken") or v["CO₂-Ventil"],
-               kuehlung=f.get("cooler") or kuehl, heizung=f.get("heater") or heiz)
+               kuehlung=f.get("cooler") or kuehl, heizung=f.get("heater") or heiz,
+               flasche=s[FLASCHE])
     print("Kegs:")
     for name, (sensor, ventil) in KEGS.items():
         sicherstellen(cbpi, "fermenter", name, dict(

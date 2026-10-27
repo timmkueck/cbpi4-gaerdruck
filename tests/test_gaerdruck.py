@@ -310,3 +310,69 @@ def test_kompressorschutz():
     assert kuehlen is False and "Kompressorschutz" in hinweis
     uhr.t += 241
     assert r.entscheiden(19.0, 18.0)[1] is True
+
+
+# --- CO2-Flasche: Hochdruckgeber vor dem Druckminderer ----------------------------
+
+def lade_einrichten():
+    """einrichten.py laedt nur die Standardbibliothek und laeuft ohne cbpi."""
+    import importlib.util
+    pfad = Path(__file__).resolve().parents[1] / "einrichten.py"
+    spec = importlib.util.spec_from_file_location("gaerdruck_einrichten", pfad)
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    return modul
+
+
+def test_messbereich_fuer_die_co2_flasche():
+    # In der Flasche stehen bei Raumtemperatur rund 50 bar, nahe dem kritischen
+    # Punkt (31 C) bis etwa 74 bar. Ein Bereich muss das abdecken.
+    assert max(T.MESSBEREICHE.values()) >= 74
+    assert T.FLASCHE_BEREICH in T.MESSBEREICHE
+    assert T.MESSBEREICHE[T.FLASCHE_BEREICH] >= 74
+
+
+def test_flaschendruck_wird_richtig_umgerechnet():
+    end = T.MESSBEREICHE["0-100 bar"]
+    # 50 bar = 0,5 V + 50/100 x 4 V = 2,5 V am Sensor -> 1,667 V am ADS1115
+    p, f = T.druck_auswerten(2.5 * T.TEILER_HAT, end)
+    assert f == "" and p == pytest.approx(50.0, abs=0.05)
+    # Volle Flasche am oberen Ende bleibt im gueltigen Spannungsfenster
+    p, f = T.druck_auswerten(4.5 * T.TEILER_HAT, end)
+    assert f == "" and p == pytest.approx(100.0, abs=0.05)
+    # Leere Flasche (drucklos) ist kein Kabelbruch
+    assert T.druck_auswerten(0.5 * T.TEILER_HAT, end) == (0.0, "")
+
+
+def test_einrichten_legt_den_flaschenfuehler_an():
+    e = lade_einrichten()
+    kanal, adresse, bereich = e.SENSOREN[e.FLASCHE]
+    assert (kanal, adresse) == ("AIN0 (Druck 1)", "0x49")  # = Druck 5 an J21
+    assert bereich == T.FLASCHE_BEREICH
+
+
+def test_einrichten_nutzt_nur_bekannte_messbereiche_und_kanaele():
+    e = lade_einrichten()
+    for name, (kanal, adresse, bereich) in e.SENSOREN.items():
+        assert bereich in T.MESSBEREICHE, f"{name}: Messbereich {bereich} gibt es nicht"
+        assert adresse in ("0x48", "0x49"), f"{name}: {adresse} ist kein ADS1115 des HAT"
+        assert kanal.startswith("AIN") and kanal[3] in "0123", f"{name}: Kanal {kanal}"
+    # Je Adresse jeder Kanal nur einmal
+    belegt = [(a, k) for k, a, _ in e.SENSOREN.values()]
+    assert len(set(belegt)) == len(belegt)
+    # Die vier Fuehler am ersten ADS1115 belegen AIN0-3 vollstaendig
+    erster = sorted(k for k, a, _ in e.SENSOREN.values() if a == "0x48")
+    assert erster == ["AIN0 (Druck 1)", "AIN1 (Druck 2)", "AIN2 (Druck 3)", "AIN3 (Druck 4)"]
+
+
+def test_dashboard_zeigt_den_flaschendruck():
+    e = lade_einrichten()
+    ids = dict(tank="t", temp="s1", druck="s2", vordruck="s3", flasche="s4", spund="a1",
+               co2="a2", kuehlung="a3", heizung="", ventile={"Spundventil": "a1"}, kegs=[])
+    d = e.dashboard(ids)
+    fuehler = [x for x in d["elements"] if x["type"] == "Sensor" and x["props"].get("sensor") == "s4"]
+    assert len(fuehler) == 1 and fuehler[0]["props"]["unit"] == " bar"
+    assert any(p["id"].endswith("flaschenfuehler") for p in d["pathes"])
+    # Ohne Flaschenfuehler faellt nur das Feld weg, das Dashboard bleibt heil
+    ohne = e.dashboard({**ids, "flasche": ""})
+    assert not [x for x in ohne["elements"] if x["props"].get("sensor") == "s4"]
