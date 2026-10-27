@@ -41,7 +41,7 @@ FermZilla ─ Gaspfosten ─ Duotight-Kupplung ─ T ─ T ─ CO₂-Ventil ─�
 | CO₂-Vordruck hinter dem Druckminderer | Druck 2 / AIN1 | kein Nachdrücken bei leerer Flasche oder zu hoch eingestelltem Druckminderer |
 | Keg 1, T zwischen Ventil 3 und Kupplung | Druck 3 / AIN2 | Regelgröße Keg 1 |
 | Keg 2, T zwischen Ventil 4 und Kupplung | Druck 4 / AIN3 | Regelgröße Keg 2 |
-| CO₂-Flasche **vor** dem Druckminderer | Druck 5 / 0x49 AIN0 | Füllstand der Flasche, lange bevor sie leer ist |
+| CO₂-Flasche **vor** dem Druckminderer | Druck 5 / 0x49 AIN0 | meldet, dass die Flasche leerläuft (**kein** Füllstand, siehe unten) |
 
 Druck 1–4 hängen am ersten ADS1115 (0x48, J18), Druck 5 am zweiten (0x49, J21). Dessen Eingänge heißen in der
 Oberfläche ebenfalls `AIN0 (Druck 1)` … `AIN3 (Druck 4)` -- entscheidend ist die **Adresse**: `AIN0` an `0x49`
@@ -56,6 +56,12 @@ beide stehen in der Auswahl. Ein kleinerer Geber wäre dauerhaft übersteuert un
 
 Der Flaschendruck ist eine Anzeige, keine Regelgröße: Das Nachdrücken entscheidet weiter der CO₂-Vordruck
 (Druck 2) hinter dem Druckminderer.
+
+**Der Flaschendruck ist kein Füllstand.** In der Flasche steht flüssiges CO₂ unter seinem eigenen Dampfdruck.
+Der hängt nur von der Temperatur ab, nicht von der Menge: Eine zu 90 % volle und eine zu 10 % volle Flasche
+zeigen bei 20 °C beide rund 50 bar. Erst wenn die letzte Flüssigkeit verdampft ist, fällt der Druck – dann aber
+schnell. Der Geber taugt also als **Warnung „gleich leer"**, nicht zum Abschätzen der Restmenge. Wer den
+Füllstand wissen will, wiegt die Flasche (Leergewicht steht eingeprägt auf der Flaschenschulter).
 
 Teile: Drucksensoren mit Duotight-Adapter wie in `BrewPiLess-PCB/docs/drucksensoren.md`, Duotight 8 mm Equal Tee,
 Magnetventile 12 V (NC) mit 1/4"-BSP-Gewinde und Duotight 8 mm × 1/4" BSP.
